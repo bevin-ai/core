@@ -5,6 +5,7 @@ import { PublicOnlyRoute } from './components/PublicOnlyRoute';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Dashboard } from './pages/Dashboard';
+import { Profile } from './pages/Profile';
 import './App.css';
 
 function App() {
@@ -36,6 +37,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             }
           />

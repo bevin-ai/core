@@ -9,6 +9,7 @@ const port: number = parseInt(process.env.PORT || '5000', 10);
 
 async function startServer() {
   try {
+    console.log("Hello")
     // Connect to MongoDB Atlas
     await connectDB();
 
