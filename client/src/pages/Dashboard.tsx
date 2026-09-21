@@ -47,17 +47,16 @@ export const Dashboard: React.FC = () => {
       {/* Main Content */}
       <main className="dashboard-main" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <div className="dashboard-card" style={{ maxWidth: '420px', width: '100%', textAlign: 'center', alignItems: 'center' }}>
-          <button
-            type="button"
+          <a
+            href="https://github.com/apps/bevin-ai-webhook-wala/installations/new"
             className="btn-github-oauth"
             id="connect-github-btn"
           >
             <GithubIcon size={20} />
             <span>Connect to GitHub</span>
-          </button>
+          </a>
         </div>
       </main>
     </div>
   );
 };
-
