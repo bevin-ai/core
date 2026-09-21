@@ -484,7 +484,190 @@
   .auth-card {
     padding: 28px 20px;
   }
+}
 
+/* Bevin workspace dashboard */
+  .dashboard-container {
+    background: #141414;
+    color: #eeeeee;
+    flex-direction: row;
+  }
+
+  .dashboard-sidebar {
+    width: 262px;
+    min-height: 100vh;
+    flex: 0 0 262px;
+    padding: 12px 8px 10px;
+    box-sizing: border-box;
+    background: #171717;
+    border-right: 1px solid #292929;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .workspace-switcher,
+  .new-session-button,
+  .dashboard-nav a,
+  .sessions-heading,
+  .empty-sessions,
+  .user-summary,
+  .sidebar-footer-actions,
+  .dashboard-topbar,
+  .topbar-account,
+  .connect-codebase,
+  .getting-started-header,
+  .getting-started-list {
+    display: flex;
+    align-items: center;
+  }
+
+  .workspace-switcher {
+    gap: 9px;
+    padding: 4px 10px 14px;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .workspace-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    background: #e8a7c6;
+    color: #331b2a;
+    font-size: 12px;
+  }
+
+  .workspace-chevron { color: #777; margin-left: -4px; }
+  .new-session-button {
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    color: #f0f0f0;
+    background: #292929;
+    border: 1px solid #333;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 13px;
+    text-align: left;
+  }
+  .dashboard-nav { margin-top: 11px; }
+  .dashboard-nav a {
+    gap: 10px;
+    padding: 7px 10px;
+    color: #c3c3c3;
+    text-decoration: none;
+    font-size: 13px;
+    border-radius: 5px;
+  }
+  .dashboard-nav a:hover { background: #242424; color: #fff; }
+  .sessions-heading {
+    justify-content: space-between;
+    margin: 20px 10px 8px;
+    color: #a0a0a0;
+    font-size: 12px;
+  }
+  .sessions-heading div { display: flex; gap: 8px; }
+  .sessions-heading button,
+  .sidebar-footer-actions button,
+  .topbar-actions button {
+    display: inline-flex;
+    padding: 2px;
+    color: #858585;
+    background: transparent;
+    border: 0;
+  }
+  .empty-sessions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 8px 10px;
+    color: #878787;
+    font-size: 12px;
+  }
+  .empty-sessions small { padding-left: 22px; color: #555; }
+  .sidebar-footer {
+    margin-top: auto;
+    padding: 10px 8px 0;
+    border-top: 1px solid #292929;
+  }
+  .user-summary { gap: 8px; min-width: 0; }
+  .user-summary > span,
+  .user-summary img {
+    width: 25px; height: 25px; border-radius: 50%; object-fit: cover;
+    display: grid; place-items: center; background: #db6ca1; color: #301326; font-size: 12px;
+  }
+  .user-summary div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .user-summary strong { color: #ddd; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .user-summary small { color: #777; font-size: 10px; }
+  .sidebar-footer-actions { justify-content: flex-end; gap: 7px; margin-top: -22px; }
+
+  .dashboard-main {
+    position: relative;
+    max-width: none;
+    padding: 0;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+    min-height: 100vh;
+    background: #141414;
+  }
+  .dashboard-topbar { justify-content: space-between; padding: 12px 18px; }
+  .topbar-actions, .topbar-account { gap: 14px; }
+  .topbar-actions button { color: #777; cursor: pointer; }
+  .topbar-account a, .topbar-account button {
+    display: inline-flex; align-items: center; gap: 6px; color: #999; background: transparent;
+    border: 0; font: inherit; font-size: 12px; text-decoration: none; cursor: pointer;
+  }
+  .topbar-account a:hover, .topbar-account button:hover { color: #fff; }
+  .dashboard-composer-area {
+    position: absolute;
+    top: 290px;
+    left: 50%;
+    width: min(610px, calc(100% - 40px));
+    transform: translateX(-50%);
+  }
+  .bevin-wordmark {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 8px; color: #f4f4f4; font-size: 21px; font-weight: 600;
+  }
+  .bevin-wordmark svg { color: #fff; }
+  .composer-mode-toggle {
+    position: absolute; top: -2px; right: 0; display: flex; gap: 2px; z-index: 1;
+  }
+  .composer-mode-toggle span { padding: 5px 13px; color: #878787; font-size: 12px; }
+  .composer-mode-toggle .active { color: #eee; background: #2e2e2e; border-radius: 14px; }
+  .connect-codebase {
+    justify-content: space-between; gap: 12px; padding: 14px 17px;
+    color: #c4c4c4; background: #202020; border-radius: 0 0 13px 13px; font-size: 12px;
+  }
+  .connect-codebase span { display: flex; align-items: center; gap: 7px; }
+  .connect-codebase a { color: #55aaff; font-weight: 500; text-decoration: none; }
+  .connect-codebase a:hover { text-decoration: underline; }
+  .getting-started { margin-top: 52px; color: #c5c5c5; font-size: 12px; }
+  .getting-started-header { justify-content: space-between; margin-bottom: 13px; }
+  .getting-started-header > span { display: flex; align-items: center; gap: 10px; color: #777; }
+  .getting-started-header i { width: 52px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #4da3ff 24%, #2d2d2d 24%); }
+  .getting-started-header button { color: #777; background: none; border: 0; font-size: 17px; }
+  .getting-started-list { flex-direction: column; align-items: stretch; gap: 12px; }
+  .getting-started-item { display: flex; align-items: center; gap: 8px; min-height: 14px; }
+  .getting-started-item > span:first-child { width: 13px; height: 13px; flex: 0 0 13px; border: 1px solid #444; border-radius: 50%; }
+  .getting-started-item .checked { color: #fff; background: #428cff; border-color: #428cff; text-align: center; font-size: 10px; line-height: 13px; }
+  .getting-started-list a { color: #55aaff; text-decoration: none; }
+
+  @media (max-width: 700px) {
+    .dashboard-sidebar { width: 58px; flex-basis: 58px; padding-inline: 6px; }
+    .workspace-switcher span:not(.workspace-avatar), .new-session-button span, .dashboard-nav a:not(:first-child)::after,
+    .dashboard-nav a { font-size: 0; }
+    .dashboard-nav a { justify-content: center; }
+    .dashboard-nav a svg { width: 17px; height: 17px; }
+    .sessions-heading, .empty-sessions, .sidebar-footer { display: none; }
+    .dashboard-composer-area { top: 180px; }
+    .getting-started { margin-top: 58px; }
+  }
+
+@media (max-width: 640px) {
   .dashboard-header {
     padding: 14px 16px;
   }
