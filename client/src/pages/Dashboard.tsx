@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
-import { GithubIcon } from '../components/GithubIcon';
+import { ChatBot } from '../components/ChatBot';
 import {
   LogOut,
   User as UserIcon,
@@ -45,19 +45,11 @@ export const Dashboard: React.FC = () => {
       </header>
 
       {/* Main Content */}
-      <main className="dashboard-main" style={{ justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <div className="dashboard-card" style={{ maxWidth: '420px', width: '100%', textAlign: 'center', alignItems: 'center' }}>
-          <button
-            type="button"
-            className="btn-github-oauth"
-            id="connect-github-btn"
-          >
-            <GithubIcon size={20} />
-            <span>Connect to GitHub</span>
-          </button>
-        </div>
+      <main className="dashboard-main" style={{ maxWidth: '840px', padding: '24px auto' }}>
+        <ChatBot title="Bevin AI Assistant" />
       </main>
     </div>
   );
 };
+
 
