@@ -4,6 +4,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth/auth.routes';
 import webhookRoutes from './routes/webhook/routes';
+import sessionRoutes from './routes/sessions/sessions.routes';
 
 const app: Application = express();
 
@@ -46,6 +47,9 @@ app.use('/auth', authRoutes);
 
 // Existing API routes
 app.use('/api', webhookRoutes);
+
+// Session management (authenticated)
+app.use('/api/sessions', sessionRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

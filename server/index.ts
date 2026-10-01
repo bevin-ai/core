@@ -9,7 +9,7 @@ const port: number = parseInt(process.env.PORT || '5000', 10);
 
 async function startServer() {
   try {
-    // Connect to MongoDB Atlas
+    // Connect to Postgres
     await connectDB();
 
     app.listen(port, () => {

@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
-import { User } from '../../models/User';
+import { prisma } from '../../config/db';
 import { authenticate, AuthenticatedRequest } from '../../middleware/auth.middleware';
 
 const router = Router();
@@ -182,28 +182,25 @@ router.get('/github/callback', async (req: Request, res: Response): Promise<void
 
     const githubIdStr = String(githubProfile.id);
 
-    // Upsert user in MongoDB Atlas
-    let user = await User.findOne({ githubId: githubIdStr });
+    const profileData = {
+      username: githubProfile.login,
+      displayName: githubProfile.name || undefined,
+      email: userEmail || undefined,
+      avatarUrl: githubProfile.avatar_url || undefined,
+      githubProfileUrl: githubProfile.html_url || undefined,
+    };
 
-    if (user) {
-      // Update existing user details
-      user.username = githubProfile.login;
-      if (githubProfile.name) user.displayName = githubProfile.name;
-      if (userEmail) user.email = userEmail;
-      if (githubProfile.avatar_url) user.avatarUrl = githubProfile.avatar_url;
-      if (githubProfile.html_url) user.githubProfileUrl = githubProfile.html_url;
-      await user.save();
-    } else {
-      // Create new user
-      user = await User.create({
-        githubId: githubIdStr,
-        username: githubProfile.login,
-        displayName: githubProfile.name || githubProfile.login,
-        email: userEmail,
-        avatarUrl: githubProfile.avatar_url,
-        githubProfileUrl: githubProfile.html_url,
-      });
-    }
+    const existingUser = await prisma.user.findUnique({ where: { githubId: githubIdStr } });
+
+    const user = existingUser
+      ? await prisma.user.update({ where: { id: existingUser.id }, data: profileData })
+      : await prisma.user.create({
+          data: {
+            ...profileData,
+            githubId: githubIdStr,
+            displayName: githubProfile.name || githubProfile.login,
+          },
+        });
 
     if (!jwtSecret) {
       console.error('❌ JWT_SECRET is not set in environment');
@@ -214,7 +211,7 @@ router.get('/github/callback', async (req: Request, res: Response): Promise<void
     // Create signed JWT session
     const token = jwt.sign(
       {
-        userId: user._id.toString(),
+        userId: user.id,
         githubId: user.githubId,
         username: user.username,
       },
@@ -252,7 +249,7 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
       return;
     }
 
-    const user = await User.findById(req.user.userId).select('-__v');
+    const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
 
     if (!user) {
       // User may have been removed from DB
@@ -269,7 +266,7 @@ router.get('/me', authenticate, async (req: AuthenticatedRequest, res: Response)
     res.status(200).json({
       authenticated: true,
       user: {
-        id: user._id,
+        id: user.id,
         githubId: user.githubId,
         username: user.username,
         displayName: user.displayName,

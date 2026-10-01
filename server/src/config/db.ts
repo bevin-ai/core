@@ -1,23 +1,17 @@
-import mongoose from 'mongoose';
+import 'dotenv/config';
+import { PrismaClient } from '../generated/prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+
+export const prisma = new PrismaClient({
+  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+});
 
 export async function connectDB(): Promise<void> {
-  const mongoURI = process.env.MONGODB_URI;
-
-  if (!mongoURI) {
-    console.error('❌ MONGODB_URI is not defined in environment variables.');
-    throw new Error('MONGODB_URI is missing');
-  }
-
   try {
-    // Enable strict query filtering
-    mongoose.set('strictQuery', true);
-    
-    await mongoose.connect(mongoURI, {
-      serverSelectionTimeoutMS: 8000,
-    });
-    console.log(' MongoDB Atlas connected successfully');
+    await prisma.$queryRaw`SELECT 1`;
+    console.log(' Postgres connected successfully');
   } catch (error) {
-    console.error(' MongoDB Atlas connection error:', error);
+    console.error(' Postgres connection error:', error);
     throw error;
   }
 }

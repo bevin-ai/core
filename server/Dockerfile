@@ -3,5 +3,6 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 COPY . .
+RUN npx prisma generate
 EXPOSE 5000
-CMD ["npx", "tsx", "index.ts"]
+CMD ["sh", "-c", "npx prisma migrate deploy && npx tsx index.ts"]
