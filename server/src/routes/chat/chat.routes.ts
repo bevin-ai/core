@@ -21,6 +21,7 @@ router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void>
       body: JSON.stringify({
         message: req.body?.message,
         history: Array.isArray(req.body?.history) ? req.body.history : [],
+        first: req.body?.first === true,
       }),
     });
 

@@ -32,6 +32,9 @@ export const Dashboard: React.FC = () => {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // Drives the ChatBot key: changes when opening/creating a conversation,
+  // but stays stable when a draft gets promoted to a real session.
+  const [conversationKey, setConversationKey] = useState('new');
 
   useEffect(() => {
     (async () => {
@@ -39,21 +42,17 @@ export const Dashboard: React.FC = () => {
       if (!res.ok) return;
       const data = await res.json();
       setSessions(data.sessions);
-      if (data.sessions.length > 0) setActiveSessionId(data.sessions[0].id);
+      if (data.sessions.length > 0) {
+        setActiveSessionId(data.sessions[0].id);
+        setConversationKey(data.sessions[0].id);
+      }
     })();
   }, []);
 
-  const handleNewSession = async () => {
-    const res = await fetch(`${API_BASE_URL}/api/sessions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({}),
-    });
-    if (!res.ok) return;
-    const { session } = await res.json();
-    setSessions((prev) => [session, ...prev]);
-    setActiveSessionId(session.id);
+  // New session = local blank draft; the DB entry is created on the first message
+  const handleNewSession = () => {
+    setActiveSessionId(null);
+    setConversationKey(`draft-${Date.now()}`);
   };
 
   const handleDeleteSession = async (event: React.MouseEvent, id: string) => {
@@ -64,7 +63,10 @@ export const Dashboard: React.FC = () => {
     });
     if (!res.ok) return;
     setSessions((prev) => prev.filter((s) => s.id !== id));
-    setActiveSessionId((current) => (current === id ? null : current));
+    if (activeSessionId === id) {
+      setActiveSessionId(null);
+      setConversationKey(`draft-${Date.now()}`);
+    }
   };
 
   const handleLogout = async () => {
@@ -72,25 +74,74 @@ export const Dashboard: React.FC = () => {
     await logout();
   };
 
+  const deriveTitle = (message: string): string => {
+    const clean = message.trim().replace(/\s+/g, ' ');
+    return clean.length > 40 ? `${clean.slice(0, 40)}…` : clean;
+  };
+
+  const createSessionFromTitle = async (title: string): Promise<void> => {
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/sessions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ title }),
+      });
+      if (res.ok) {
+        const { session } = await res.json();
+        setSessions((prev) => [session, ...prev]);
+        setActiveSessionId(session.id);
+      }
+    } catch (error) {
+      console.error('Failed to create session:', error);
+    }
+  };
+
   const handleStreamMessage = async (
     message: string,
     history: { role: string; text: string }[],
     onChunk: (chunk: string) => void,
   ): Promise<void> => {
+    const isFirst = activeSessionId === null;
+
     const res = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ message, history }),
+      body: JSON.stringify({ message, history, first: isFirst }),
     });
     if (!res.ok || !res.body) throw new Error('Chat request failed');
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
+
+    if (!isFirst) {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        onChunk(decoder.decode(value, { stream: true }));
+      }
+      return;
+    }
+
+    // First reply is structured JSON {title, reply}: name the session from
+    // it, then reveal the reply (the smoothing buffer animates it).
+    let raw = '';
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
-      onChunk(decoder.decode(value, { stream: true }));
+      raw += decoder.decode(value, { stream: true });
     }
+    let title = deriveTitle(message);
+    let reply = raw;
+    try {
+      const parsed = JSON.parse(raw) as { title?: unknown; reply?: unknown };
+      if (typeof parsed.title === 'string' && parsed.title.trim()) title = parsed.title.trim().slice(0, 120);
+      if (typeof parsed.reply === 'string') reply = parsed.reply;
+    } catch {
+      // model returned prose instead of JSON: show it as-is
+    }
+    await createSessionFromTitle(title);
+    onChunk(reply || raw);
   };
 
   return (
@@ -134,8 +185,17 @@ export const Dashboard: React.FC = () => {
                 role="button"
                 tabIndex={0}
                 className={`session-item ${activeSessionId === session.id ? 'active' : ''}`}
-                onClick={() => setActiveSessionId(session.id)}
-                onKeyDown={(e) => e.key === 'Enter' && setActiveSessionId(session.id)}
+                title={session.title}
+                onClick={() => {
+                  if (activeSessionId === session.id) return;
+                  setActiveSessionId(session.id);
+                  setConversationKey(session.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' || activeSessionId === session.id) return;
+                  setActiveSessionId(session.id);
+                  setConversationKey(session.id);
+                }}
               >
                 <span>{session.title}</span>
                 <button
@@ -183,7 +243,7 @@ export const Dashboard: React.FC = () => {
 
         <section className="dashboard-composer-area">
           <div className="bevin-wordmark"><Cpu size={22} fill="currentColor" /> <span>Bevin</span></div>
-          <ChatBot key={activeSessionId ?? 'new'} title="Bevin" compact onStreamMessage={handleStreamMessage} />
+          <ChatBot key={conversationKey} title="Bevin" compact onStreamMessage={handleStreamMessage} />
           <div className="connect-codebase">
             <span><GitPullRequest size={15} /> Connect your codebase to try Bevin for free</span>
             <a href="https://github.com/apps/bevin-ai-webhook-wala/installations/new" target="_blank" rel="noreferrer">Connect</a>

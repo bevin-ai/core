@@ -692,6 +692,7 @@
   }
   .dashboard-composer-area:has(.chatbot-wrapper.has-messages) {
     top: 60px;
+    width: min(750px, calc(100% - 40px));
     min-height: calc(100vh - 60px);
     display: flex;
     flex-direction: column;

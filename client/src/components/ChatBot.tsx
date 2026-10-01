@@ -52,7 +52,7 @@ const DEFAULT_SUGGESTIONS = [
 
 export const ChatBot: React.FC<ChatBotProps> = ({
   title = 'Bevin AI Assistant',
-  placeholder = 'Ask Bevin to assist with tasks, write code, or explain features...',
+  placeholder = 'Ask Bevin',
   onSendMessage,
   onStreamMessage,
   compact = false
