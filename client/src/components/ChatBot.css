@@ -208,6 +208,24 @@
   scroll-behavior: smooth;
 }
 
+/* Sticky fade shown once there is chat history above the viewport */
+.chatbot-messages::before {
+  content: '';
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 24px;
+  margin-bottom: -40px; /* own height (24) + flex gap (16) → no layout shift */
+  background: linear-gradient(to bottom, rgba(1, 1, 2, 0.9), transparent);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  pointer-events: none;
+}
+
+.chatbot-messages.scrolled::before {
+  opacity: 1;
+}
+
 .chatbot-welcome {
   display: flex;
   flex-direction: column;
@@ -299,10 +317,12 @@
 .chat-message-item.user {
   align-self: flex-end;
   flex-direction: row-reverse;
+  max-width: 85%;
 }
 
 .chat-message-item.assistant {
   align-self: flex-start;
+  max-width: min(750px, calc(100% - 40px));
 }
 
 .message-avatar {
@@ -331,6 +351,8 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  position: relative;
+  min-width: 0;
 }
 
 .message-bubble {
@@ -343,9 +365,55 @@
 }
 
 .user .message-bubble {
-  background: var(--accent, #5e6ad2);
+  background: #1A1A1A;
   color: #ffffff;
   border-bottom-right-radius: 4px;
+  max-height: 20.5em;
+  overflow: hidden;
+}
+
+.user .message-bubble.clamped {
+  -webkit-mask-image: linear-gradient(to bottom, #000 58%, transparent);
+  mask-image: linear-gradient(to bottom, #000 58%, transparent);
+}
+
+.user .message-bubble.expanded {
+  max-height: none;
+  overflow: visible;
+  padding-bottom: 24px; /* room for Show less with a gap above it */
+}
+
+.show-more-btn,
+.show-less-btn {
+  position: absolute;
+  left: 14px;
+  bottom: 5px;
+  z-index: 1;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+}
+
+.show-more-btn {
+  top: 290px; /* inside the fade, near the 20.5em fold */
+  bottom: auto;
+  color: #b9bce8;
+}
+
+.show-more-btn:hover {
+  color: var(--accent, #5e6ad2);
+}
+
+.show-less-btn {
+  color: #7d828c;
+}
+
+.show-less-btn:hover {
+  color: #b3b8c2;
 }
 
 .assistant .message-bubble {
@@ -361,18 +429,13 @@
 .message-bubble h4,
 .message-bubble h5,
 .message-bubble h6 {
-  margin: 14px 0 6px;
+  margin: 16px 0 8px;
   font-size: 15px;
   font-weight: 600;
   color: var(--text-h, #f3f4f6);
 }
-.message-bubble h1:first-child,
-.message-bubble h2:first-child,
-.message-bubble h3:first-child,
-.message-bubble h4:first-child,
-.message-bubble h5:first-child,
-.message-bubble h6:first-child {
-  margin-top: 0;
+.message-bubble:is(h1, h2, h3, h4, h5, h6):first-child {
+  margin-top: 0 !important; /* inline heading styles must not gap the bubble top */
 }
 .message-bubble p {
   margin: 8px 0;
@@ -614,7 +677,9 @@
     padding: 14px;
   }
 
-  .chat-message-item {
+  .chat-message-item,
+  .chat-message-item.user,
+  .chat-message-item.assistant {
     max-width: 95%;
   }
 

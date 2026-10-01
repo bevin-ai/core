@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { API_BASE_URL } from '../config/api';
@@ -18,7 +18,8 @@ import {
   Minimize2,
   Code,
   Terminal,
-  Zap
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import './ChatBot.css';
 
@@ -52,12 +53,44 @@ const DEFAULT_SUGGESTIONS = [
   { icon: Wand2, label: 'How do I run the dev server?' }
 ];
 
+const headingStyle = (fontSize: string, margin: string): React.CSSProperties => ({
+  fontSize,
+  fontWeight: 700,
+  letterSpacing: 'normal',
+  lineHeight: 1.3,
+  margin,
+});
+
+const asHeading =
+  (Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', style: React.CSSProperties) =>
+  ({ node: _node, ...props }: { node?: unknown } & React.HTMLAttributes<HTMLHeadingElement>) => (
+    <Tag style={style} {...props} />
+  );
+
+const botHeadings = {
+  h1: asHeading('h1', headingStyle('1.5rem', '1rem 0 0.6rem')),
+  h2: asHeading('h2', headingStyle('1.25rem', '1rem 0 0.6rem')),
+  h3: asHeading('h3', headingStyle('1.1rem', '0.8rem 0 0.5rem')),
+  h4: asHeading('h4', headingStyle('1rem', '0.7rem 0 0.4rem')),
+  h5: asHeading('h5', headingStyle('0.95rem', '0.6rem 0 0.35rem')),
+  h6: asHeading('h6', headingStyle('0.9rem', '0.6rem 0 0.35rem')),
+};
+
+const userHeadingsOff = (text: string): string =>
+  text
+    .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
+    .map((part, i) => (i % 2 ? part : part.replace(/^(#{1,6} )/gm, '\\$1')))
+    .join('');
+
+const userMd = (text: string): string => userHeadingsOff(text).replace(/\n/g, '  \n');
+
 export const ChatBot: React.FC<ChatBotProps> = ({
   title = 'Bevin AI Assistant',
   placeholder = 'Ask Bevin',
   onSendMessage,
   onStreamMessage,
-  compact = false
+  compact = false,
+  sessionId = null
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -65,10 +98,42 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   const [activeMode, setActiveMode] = useState<'agent' | 'ask'>('agent');
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showTopShadow, setShowTopShadow] = useState(false);
+  const [clampedIds, setClampedIds] = useState<string[]>([]);
+  const [expandedIds, setExpandedIds] = useState<string[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const messagesRef = useRef<HTMLDivElement>(null);
+  const bubbleRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hydratedRef = useRef(false);
+
+  const handleScroll = () => {
+    const el = messagesRef.current;
+    setShowTopShadow(window.scrollY > 8 || (el != null && el.scrollTop > 8));
+  };
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Long user bubbles are height-capped by CSS; measure which ones actually
+  // overflow so only those get the fade + "Show more" affordance.
+  useLayoutEffect(() => {
+    const overflowing: string[] = [];
+    for (const m of messages) {
+      if (m.sender !== 'user' || expandedIds.includes(m.id)) continue;
+      const el = bubbleRefs.current[m.id];
+      if (el && el.scrollHeight > el.clientHeight + 4) overflowing.push(m.id);
+    }
+    setClampedIds((prev) =>
+      prev.length === overflowing.length && prev.every((id) => overflowing.includes(id))
+        ? prev
+        : overflowing,
+    );
+  }, [messages, expandedIds]);
 
   // One hydration per mounted conversation: load saved messages for an
   // opened session; drafts (no sessionId yet) never fetch, so a draft
@@ -140,7 +205,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     return `I've processed your query: "${userText}".\n\nIs there anything specific in the Bevin codebase you'd like me to analyze or update?`;
   };
 
-  const handleSend = async (textToSend?: string) => {
+  const handleSend = async (
+    textToSend?: string,
+    historyOverride?: { role: 'user' | 'assistant'; text: string }[],
+  ) => {
     const text = (textToSend || input).trim();
     if (!text || isTyping) return;
 
@@ -159,7 +227,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
     setIsTyping(true);
 
-    const history = messages.map((m) => ({ role: m.sender, text: m.text }));
+    const history = historyOverride ?? messages.map((m) => ({ role: m.sender, text: m.text }));
 
     try {
       if (onStreamMessage) {
@@ -238,6 +306,15 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     } finally {
       setIsTyping(false);
     }
+  };
+
+  const handleRetry = async (msg: Message) => {
+    if (isTyping || msg.sender !== 'user') return;
+    const idx = messages.findIndex((m) => m.id === msg.id);
+    if (idx === -1) return;
+    const history = messages.slice(0, idx).map((m) => ({ role: m.sender, text: m.text }));
+    setMessages((prev) => prev.slice(0, idx));
+    await handleSend(msg.text, history);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -326,7 +403,11 @@ export const ChatBot: React.FC<ChatBotProps> = ({
       </header>
 
       {/* Messages Area */}
-      <div className="chatbot-messages">
+      <div
+        className={`chatbot-messages ${showTopShadow ? 'scrolled' : ''}`}
+        ref={messagesRef}
+        onScroll={handleScroll}
+      >
         {messages.length === 0 ? (
           <div className="chatbot-welcome">
             <div className="welcome-icon-glow">
@@ -362,29 +443,68 @@ export const ChatBot: React.FC<ChatBotProps> = ({
               </div>
 
               <div className="message-content-wrapper">
-                <div className="message-bubble">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                <div
+                  ref={(el) => {
+                    if (msg.sender === 'user') bubbleRefs.current[msg.id] = el;
+                  }}
+                  className={`message-bubble${clampedIds.includes(msg.id) ? ' clamped' : ''}${
+                    expandedIds.includes(msg.id) ? ' expanded' : ''
+                  }`}
+                >
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={botHeadings}
+                  >
+                    {msg.sender === 'user' ? userMd(msg.text) : msg.text}
+                  </ReactMarkdown>
+                  {expandedIds.includes(msg.id) && (
+                    <button
+                      type="button"
+                      className="show-less-btn"
+                      onClick={() => setExpandedIds((prev) => prev.filter((id) => id !== msg.id))}
+                    >
+                      Show less
+                    </button>
+                  )}
                 </div>
+
+                {clampedIds.includes(msg.id) && (
+                  <button
+                    type="button"
+                    className="show-more-btn"
+                    onClick={() => setExpandedIds((prev) => [...prev, msg.id])}
+                  >
+                    Show more
+                  </button>
+                )}
 
                 <div className="message-meta">
                   <span>{msg.timestamp}</span>
-                  {msg.sender === 'assistant' && (
+                  {msg.sender === 'user' && (
                     <button
                       className="copy-btn"
-                      onClick={() => handleCopy(msg.id, msg.text)}
+                      onClick={() => handleRetry(msg)}
                       type="button"
+                      disabled={isTyping}
                     >
-                      {copiedId === msg.id ? (
-                        <>
-                          <Check size={12} /> Copied
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={12} /> Copy
-                        </>
-                      )}
+                      <RotateCcw size={12} /> Retry
                     </button>
                   )}
+                  <button
+                    className="copy-btn"
+                    onClick={() => handleCopy(msg.id, msg.text)}
+                    type="button"
+                  >
+                    {copiedId === msg.id ? (
+                      <>
+                        <Check size={12} /> Copied
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={12} /> Copy
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
             </div>
