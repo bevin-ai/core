@@ -56,13 +56,10 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-scroll to bottom of chat
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
   useEffect(() => {
-    scrollToBottom();
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'instant' });
+    }
   }, [messages, isTyping]);
 
   // Handle textarea resize
@@ -212,8 +209,31 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     });
   };
 
+  const modeToggle = (
+    <div className="chatbot-mode-toggle">
+      <button
+        className={`mode-btn ${activeMode === 'agent' ? 'active' : ''}`}
+        onClick={() => setActiveMode('agent')}
+        type="button"
+      >
+        Agent
+      </button>
+      <button
+        className={`mode-btn ${activeMode === 'ask' ? 'active' : ''}`}
+        onClick={() => setActiveMode('ask')}
+        type="button"
+      >
+        Ask
+      </button>
+    </div>
+  );
+
   return (
-    <div className={`chatbot-wrapper ${isFullscreen ? 'fullscreen' : ''} ${compact ? 'compact' : ''}`}>
+    <div
+      className={`chatbot-wrapper ${isFullscreen ? 'fullscreen' : ''} ${compact ? 'compact' : ''} ${
+        messages.length > 0 ? 'has-messages' : ''
+      }`}
+    >
       {/* Header */}
       <header className="chatbot-header">
         <div className="chatbot-brand">
@@ -223,7 +243,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
           <div className="chatbot-title-area">
             <h3 className="chatbot-name">
               {title}
-              <Sparkles size={14} style={{ color: 'var(--accent, #c084fc)' }} />
+              <Sparkles size={14} style={{ color: 'var(--accent, #5e6ad2)' }} />
             </h3>
             <div className="chatbot-status">
               <span className="status-dot"></span>
@@ -233,22 +253,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         </div>
 
         <div className="chatbot-actions">
-          <div className="chatbot-mode-toggle">
-            <button
-              className={`mode-btn ${activeMode === 'agent' ? 'active' : ''}`}
-              onClick={() => setActiveMode('agent')}
-              type="button"
-            >
-              Agent
-            </button>
-            <button
-              className={`mode-btn ${activeMode === 'ask' ? 'active' : ''}`}
-              onClick={() => setActiveMode('ask')}
-              type="button"
-            >
-              Ask
-            </button>
-          </div>
+          {modeToggle}
 
           {messages.length > 0 && (
             <button
@@ -354,8 +359,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
             </div>
           </div>
         )}
-
-        <div ref={messagesEndRef} />
+        <div className="messages-end" ref={messagesEndRef} />
       </div>
 
       {/* Input Container */}
@@ -372,15 +376,12 @@ export const ChatBot: React.FC<ChatBotProps> = ({
           />
 
           <div className="input-toolbar">
-            <div className="input-toolbar-left">
-              <button className="toolbar-btn" title="Attach context" type="button">
-                <Plus size={16} />
-              </button>
-              <div className="badge-tag">
-                <Sparkles size={12} />
-                <span>Model Fusion</span>
-              </div>
-            </div>
+          <div className="input-toolbar-left">
+            {compact && modeToggle}
+            <button className="toolbar-btn" title="Attach context" type="button">
+              <Plus size={16} />
+            </button>
+          </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button className="toolbar-btn" title="Voice input" type="button">
