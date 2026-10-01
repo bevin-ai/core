@@ -67,4 +67,70 @@ router.delete('/:id', async (req: AuthenticatedRequest, res: Response): Promise<
   }
 });
 
+/**
+ * GET /api/sessions/:id/messages
+ * List a session's messages in chronological order
+ */
+router.get('/:id/messages', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const session = await prisma.session.findFirst({
+      where: { id: String(req.params.id), userId: req.user!.userId },
+    });
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+    const messages = await prisma.chatMessage.findMany({
+      where: { sessionId: session.id },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, role: true, content: true, createdAt: true },
+    });
+    res.status(200).json({ messages });
+  } catch (error) {
+    console.error('❌ Error listing messages:', error);
+    res.status(500).json({ error: 'Failed to list messages' });
+  }
+});
+
+/**
+ * POST /api/sessions/:id/messages
+ * Save a batch of messages (user + assistant) and bump session recency
+ */
+router.post('/:id/messages', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  try {
+    const session = await prisma.session.findFirst({
+      where: { id: String(req.params.id), userId: req.user!.userId },
+    });
+    if (!session) {
+      res.status(404).json({ error: 'Session not found' });
+      return;
+    }
+    const items = (Array.isArray(req.body?.items) ? req.body.items : [])
+      .filter(
+        (m: unknown): m is { role: string; text: string } =>
+          !!m &&
+          typeof m === 'object' &&
+          ((m as { role?: unknown }).role === 'user' || (m as { role?: unknown }).role === 'assistant') &&
+          typeof (m as { text?: unknown }).text === 'string',
+      )
+      .map((m: { role: string; text: string }) => ({
+        role: m.role,
+        content: m.text,
+        sessionId: session.id,
+      }));
+
+    if (items.length > 0) {
+      await prisma.chatMessage.createMany({ data: items });
+      await prisma.session.update({
+        where: { id: session.id },
+        data: { title: session.title },
+      });
+    }
+    res.status(201).json({ count: items.length });
+  } catch (error) {
+    console.error('❌ Error saving messages:', error);
+    res.status(500).json({ error: 'Failed to save messages' });
+  }
+});
+
 export default router;
