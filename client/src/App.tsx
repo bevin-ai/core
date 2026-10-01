@@ -30,6 +30,7 @@ function App() {
               </PublicOnlyRoute>
             }
           />
+          
 
           {/* Protected routes (Requires authentication) */}
           <Route

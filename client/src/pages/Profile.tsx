@@ -32,17 +32,17 @@ export const Profile: React.FC = () => {
     : 'Recently';
 
   return (
-    <div className="dashboard-container">
+    <div className="profile-container">
       {/* Header */}
-      <header className="dashboard-header">
+      <header className="profile-header">
         <div className="header-brand">
           <div className="brand-badge">
             <Cpu size={18} />
             <span>Autonomous Agent Workspace</span>
           </div>
         </div>
-        <div className="header-actions">
-          <Link to="/dashboard" className="btn-logout" style={{ textDecoration: 'none', marginRight: '8px' }}>
+        <div className="profile-header-actions">
+          <Link to="/dashboard" className="btn-logout" id="dashboard-link" style={{ textDecoration: 'none' }}>
             <LayoutDashboard size={16} />
             <span>Dashboard</span>
           </Link>
@@ -51,15 +51,16 @@ export const Profile: React.FC = () => {
             disabled={isLoggingOut}
             className="btn-logout"
             id="logout-btn"
+            type="button"
           >
             <LogOut size={16} />
-            <span>{isLoggingOut ? 'Logging out...' : 'Sign out'}</span>
+            <span>{isLoggingOut ? 'Signing out...' : 'Sign out'}</span>
           </button>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="dashboard-main">
+      <main className="profile-main">
         {/* Welcome Banner */}
         <div className="welcome-card">
           <div className="user-profile-header">

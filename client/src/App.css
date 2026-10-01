@@ -232,7 +232,7 @@
   }
 }
 
-/* Dashboard Layout */
+/* Dashboard & Profile Layout */
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -240,6 +240,44 @@
   min-height: 100vh;
   box-sizing: border-box;
   text-align: left;
+}
+
+.profile-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
+  text-align: left;
+  background: var(--bg);
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 28px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.profile-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-main {
+  padding: 32px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  max-width: 1000px;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .dashboard-header {
