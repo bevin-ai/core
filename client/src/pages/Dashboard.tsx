@@ -72,6 +72,27 @@ export const Dashboard: React.FC = () => {
     await logout();
   };
 
+  const handleStreamMessage = async (
+    message: string,
+    history: { role: string; text: string }[],
+    onChunk: (chunk: string) => void,
+  ): Promise<void> => {
+    const res = await fetch(`${API_BASE_URL}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ message, history }),
+    });
+    if (!res.ok || !res.body) throw new Error('Chat request failed');
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      onChunk(decoder.decode(value, { stream: true }));
+    }
+  };
+
   return (
     <div className="dashboard-container">
       <aside className="dashboard-sidebar">
@@ -162,7 +183,7 @@ export const Dashboard: React.FC = () => {
 
         <section className="dashboard-composer-area">
           <div className="bevin-wordmark"><Cpu size={22} fill="currentColor" /> <span>Bevin</span></div>
-          <ChatBot key={activeSessionId ?? 'new'} title="Bevin" compact />
+          <ChatBot key={activeSessionId ?? 'new'} title="Bevin" compact onStreamMessage={handleStreamMessage} />
           <div className="connect-codebase">
             <span><GitPullRequest size={15} /> Connect your codebase to try Bevin for free</span>
             <a href="https://github.com/apps/bevin-ai-webhook-wala/installations/new" target="_blank" rel="noreferrer">Connect</a>

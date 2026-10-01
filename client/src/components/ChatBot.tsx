@@ -1,4 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   Send,
   Bot,
@@ -29,7 +31,15 @@ export interface Message {
 interface ChatBotProps {
   title?: string;
   placeholder?: string;
-  onSendMessage?: (message: string) => Promise<string> | string;
+  onSendMessage?: (
+    message: string,
+    history: { role: 'user' | 'assistant'; text: string }[],
+  ) => Promise<string> | string;
+  onStreamMessage?: (
+    message: string,
+    history: { role: 'user' | 'assistant'; text: string }[],
+    onChunk: (chunk: string) => void,
+  ) => Promise<void>;
   compact?: boolean;
 }
 
@@ -44,6 +54,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   title = 'Bevin AI Assistant',
   placeholder = 'Ask Bevin to assist with tasks, write code, or explain features...',
   onSendMessage,
+  onStreamMessage,
   compact = false
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -117,10 +128,60 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
     setIsTyping(true);
 
+    const history = messages.map((m) => ({ role: m.sender, text: m.text }));
+
     try {
+      if (onStreamMessage) {
+        const streamId = (Date.now() + 1).toString();
+        let target = '';
+        let display = '';
+
+        const updateMessage = (textNow: string) => {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === streamId)) {
+              return prev.map((m) => (m.id === streamId ? { ...m, text: textNow } : m));
+            }
+            return [
+              ...prev,
+              {
+                id: streamId,
+                sender: 'assistant' as const,
+                text: textNow,
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              },
+            ];
+          });
+        };
+
+        // Reveal received text in small per-frame steps so bursty
+        // upstream chunks render as one smooth stream.
+        const timer = window.setInterval(() => {
+          if (display.length >= target.length) return;
+          const backlog = target.length - display.length;
+          const step = Math.min(60, Math.max(2, Math.ceil(backlog / 10)));
+          display = target.slice(0, display.length + step);
+          setIsTyping(false);
+          updateMessage(display);
+        }, 16);
+
+        try {
+          await onStreamMessage(text, history, (chunk) => {
+            target += chunk;
+          });
+          // Keep animating until the reveal catches up with the full reply
+          while (display.length < target.length) {
+            await new Promise((resolve) => setTimeout(resolve, 32));
+          }
+        } finally {
+          window.clearInterval(timer);
+        }
+        if (!target) throw new Error('Empty response');
+        return;
+      }
+
       let botText = '';
       if (onSendMessage) {
-        botText = await onSendMessage(text);
+        botText = await onSendMessage(text, history);
       } else {
         // Simulate network delay for natural feel
         await new Promise((resolve) => setTimeout(resolve, 700 + Math.random() * 500));
@@ -163,50 +224,6 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
   const handleClearChat = () => {
     setMessages([]);
-  };
-
-  // Formatting helper for simple Markdown rendering (code blocks, bold, linebreaks)
-  const renderFormattedText = (text: string) => {
-    const parts = text.split(/(```[\s\S]*?```)/g);
-
-    return parts.map((part, index) => {
-      if (part.startsWith('```') && part.endsWith('```')) {
-        const codeLines = part.slice(3, -3).trim().split('\n');
-        const language = codeLines[0].match(/^[a-z]+/i) ? codeLines[0] : '';
-        const codeContent = language ? codeLines.slice(1).join('\n') : codeLines.join('\n');
-
-        return (
-          <pre key={index}>
-            <code>{codeContent}</code>
-          </pre>
-        );
-      }
-
-      // Simple inline code & bold formatting
-      const lines = part.split('\n');
-      return (
-        <span key={index}>
-          {lines.map((line, lIdx) => {
-            const formattedLine = line.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).map((segment, sIdx) => {
-              if (segment.startsWith('`') && segment.endsWith('`')) {
-                return <code key={sIdx}>{segment.slice(1, -1)}</code>;
-              }
-              if (segment.startsWith('**') && segment.endsWith('**')) {
-                return <strong key={sIdx}>{segment.slice(2, -2)}</strong>;
-              }
-              return segment;
-            });
-
-            return (
-              <React.Fragment key={lIdx}>
-                {formattedLine}
-                {lIdx < lines.length - 1 && <br />}
-              </React.Fragment>
-            );
-          })}
-        </span>
-      );
-    });
   };
 
   const modeToggle = (
@@ -315,7 +332,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
               <div className="message-content-wrapper">
                 <div className="message-bubble">
-                  {renderFormattedText(msg.text)}
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
                 </div>
 
                 <div className="message-meta">
