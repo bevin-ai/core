@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { API_BASE_URL } from '../config/api';
 import {
   Send,
   Bot,
@@ -41,6 +42,7 @@ interface ChatBotProps {
     onChunk: (chunk: string) => void,
   ) => Promise<void>;
   compact?: boolean;
+  sessionId?: string | null;
 }
 
 const DEFAULT_SUGGESTIONS = [
@@ -66,6 +68,35 @@ export const ChatBot: React.FC<ChatBotProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const hydratedRef = useRef(false);
+
+  // One hydration per mounted conversation: load saved messages for an
+  // opened session; drafts (no sessionId yet) never fetch, so a draft
+  // promoted to a session mid-chat keeps its messages.
+  useEffect(() => {
+    if (hydratedRef.current) return;
+    hydratedRef.current = true;
+    if (!sessionId) return;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/sessions/${sessionId}/messages`, {
+          credentials: 'include',
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        setMessages(
+          data.messages.map((m: { id: string; role: string; content: string; createdAt: string }) => ({
+            id: m.id,
+            sender: m.role === 'user' ? 'user' : 'assistant',
+            text: m.content,
+            timestamp: new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          })),
+        );
+      } catch (error) {
+        console.error('Failed to load messages:', error);
+      }
+    })();
+  }, [sessionId]);
 
   useEffect(() => {
     if (messages.length > 0) {

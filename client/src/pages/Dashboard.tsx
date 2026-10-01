@@ -79,7 +79,7 @@ export const Dashboard: React.FC = () => {
     return clean.length > 40 ? `${clean.slice(0, 40)}…` : clean;
   };
 
-  const createSessionFromTitle = async (title: string): Promise<void> => {
+  const createSessionFromTitle = async (title: string): Promise<string | null> => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/sessions`, {
         method: 'POST',
@@ -91,10 +91,26 @@ export const Dashboard: React.FC = () => {
         const { session } = await res.json();
         setSessions((prev) => [session, ...prev]);
         setActiveSessionId(session.id);
+        return session.id as string;
       }
     } catch (error) {
       console.error('Failed to create session:', error);
     }
+    return null;
+  };
+
+  const saveMessages = (sessionId: string, message: string, reply: string) => {
+    fetch(`${API_BASE_URL}/api/sessions/${sessionId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({
+        items: [
+          { role: 'user', text: message },
+          { role: 'assistant', text: reply },
+        ],
+      }),
+    }).catch((error) => console.error('Failed to save messages:', error));
   };
 
   const handleStreamMessage = async (
@@ -102,7 +118,8 @@ export const Dashboard: React.FC = () => {
     history: { role: string; text: string }[],
     onChunk: (chunk: string) => void,
   ): Promise<void> => {
-    const isFirst = activeSessionId === null;
+    let sessionId = activeSessionId;
+    const isFirst = sessionId === null;
 
     const res = await fetch(`${API_BASE_URL}/api/chat`, {
       method: 'POST',
@@ -115,11 +132,15 @@ export const Dashboard: React.FC = () => {
     const decoder = new TextDecoder();
 
     if (!isFirst) {
+      let reply = '';
       for (;;) {
         const { done, value } = await reader.read();
         if (done) break;
-        onChunk(decoder.decode(value, { stream: true }));
+        const piece = decoder.decode(value, { stream: true });
+        reply += piece;
+        onChunk(piece);
       }
+      if (sessionId) saveMessages(sessionId, message, reply);
       return;
     }
 
@@ -140,8 +161,9 @@ export const Dashboard: React.FC = () => {
     } catch {
       // model returned prose instead of JSON: show it as-is
     }
-    await createSessionFromTitle(title);
+    sessionId = await createSessionFromTitle(title);
     onChunk(reply || raw);
+    if (sessionId) saveMessages(sessionId, message, reply || raw);
   };
 
   return (
@@ -229,7 +251,6 @@ export const Dashboard: React.FC = () => {
       <main className="dashboard-main">
         <div className="dashboard-topbar">
           <div className="topbar-actions">
-            <button type="button" aria-label="Search"><Search size={17} /></button>
             <button type="button" aria-label="Toggle sidebar"><PanelLeft size={17} /></button>
           </div>
           <div className="topbar-account">
@@ -243,7 +264,7 @@ export const Dashboard: React.FC = () => {
 
         <section className="dashboard-composer-area">
           <div className="bevin-wordmark"><Cpu size={22} fill="currentColor" /> <span>Bevin</span></div>
-          <ChatBot key={conversationKey} title="Bevin" compact onStreamMessage={handleStreamMessage} />
+          <ChatBot key={conversationKey} title="Bevin" compact sessionId={activeSessionId} onStreamMessage={handleStreamMessage} />
           <div className="connect-codebase">
             <span><GitPullRequest size={15} /> Connect your codebase to try Bevin for free</span>
             <a href="https://github.com/apps/bevin-ai-webhook-wala/installations/new" target="_blank" rel="noreferrer">Connect</a>
