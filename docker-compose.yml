@@ -1,22 +1,53 @@
+# Dev stack: source is bind-mounted, hot-reload runs in containers.
+# Usage: docker compose up
+# First run builds the images; later runs never need --build
+# (rebuild only after adding dependencies).
+
 services:
   client:
-    build: ./client
+    build:
+      context: ./client
+      target: build # node stage with deps; skip the nginx image
+    command: npm run dev -- --host 0.0.0.0 --port 5173
     ports:
       - "5173:5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules # container's linux deps stay; host mount can't hide them
+    environment:
+      CHOKIDAR_USEPOLLING: "true"
     depends_on:
       - server
 
   server:
     build: ./server
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npx nodemon --legacy-watch --exec tsx index.ts"
     ports:
       - "5000:5000"
     env_file:
       - ./server/.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bevin?schema=public
+      CHAT_SERVICE_URL: http://chat-service:8000
+    volumes:
+      - ./server:/app
+      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+      chat-service:
+        condition: service_started
+
+  chat-service:
+    build: ./chat-service
+    command: uv run --no-sync uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./chat-service/.env
+    volumes:
+      - ./chat-service:/app
+      - /app/.venv # container's linux venv stays; host mount can't hide it
 
   postgres:
     image: postgres:17-alpine
