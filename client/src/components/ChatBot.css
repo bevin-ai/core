@@ -527,6 +527,80 @@
 .message-bubble pre code {
   background: transparent;
   padding: 0;
+  margin: 0;
+}
+
+/* Copy button overlay on code blocks */
+.code-block {
+  position: relative;
+  margin: 8px 0;
+}
+
+.code-block pre {
+  margin: 0;
+}
+
+.code-copy-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text, #9ca3af);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.code-block:hover .code-copy-btn,
+.code-copy-btn:focus-visible {
+  opacity: 1;
+}
+
+.code-copy-btn:hover {
+  color: var(--accent, #5e6ad2);
+}
+
+/* Inline edit form in user bubble */
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Invisible copy of the text drives the bubble's shrink-to-fit width,
+   so it grows/shrinks exactly like the submitted message. */
+.edit-row {
+  position: relative;
+}
+
+.edit-mirror {
+  display: block;
+  visibility: hidden;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font: inherit;
+}
+
+.edit-textarea {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+  resize: none;
+  overflow: hidden;
+  display: block;
 }
 
 /* Typing Indicator */

@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeHighlight from 'rehype-highlight';
+import 'highlight.js/styles/atom-one-dark.css';
 import { API_BASE_URL } from '../config/api';
 import {
   Send,
@@ -19,7 +21,8 @@ import {
   Code,
   Terminal,
   Zap,
-  RotateCcw
+  RotateCcw,
+  Pencil
 } from 'lucide-react';
 import './ChatBot.css';
 
@@ -76,6 +79,32 @@ const botHeadings = {
   h6: asHeading('h6', headingStyle('0.9rem', '0.6rem 0 0.35rem')),
 };
 
+const CodeBlock = ({
+  node: _node,
+  children,
+  ...props
+}: { node?: unknown } & React.HTMLAttributes<HTMLPreElement>) => {
+  const [copied, setCopied] = useState(false);
+  const preRef = useRef<HTMLPreElement>(null);
+
+  const copy = () => {
+    navigator.clipboard.writeText(preRef.current?.textContent ?? '');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
+  return (
+    <div className="code-block">
+      <button className="code-copy-btn" onClick={copy} type="button" title="Copy code">
+        {copied ? <Check size={12} /> : <Copy size={12} />}
+      </button>
+      <pre ref={preRef} {...props}>
+        {children}
+      </pre>
+    </div>
+  );
+};
+
 const userHeadingsOff = (text: string): string =>
   text
     .split(/(```[\s\S]*?```|`[^`\n]*`)/g)
@@ -101,11 +130,15 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   const [showTopShadow, setShowTopShadow] = useState(false);
   const [clampedIds, setClampedIds] = useState<string[]>([]);
   const [expandedIds, setExpandedIds] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
+  const [editMetaWidth, setEditMetaWidth] = useState<number | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesRef = useRef<HTMLDivElement>(null);
   const bubbleRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const metaRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hydratedRef = useRef(false);
 
   const handleScroll = () => {
@@ -124,7 +157,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
   useLayoutEffect(() => {
     const overflowing: string[] = [];
     for (const m of messages) {
-      if (m.sender !== 'user' || expandedIds.includes(m.id)) continue;
+      if (m.sender !== 'user' || expandedIds.includes(m.id) || editingId === m.id) continue;
       const el = bubbleRefs.current[m.id];
       if (el && el.scrollHeight > el.clientHeight + 4) overflowing.push(m.id);
     }
@@ -133,7 +166,7 @@ export const ChatBot: React.FC<ChatBotProps> = ({
         ? prev
         : overflowing,
     );
-  }, [messages, expandedIds]);
+  }, [messages, expandedIds, editingId]);
 
   // One hydration per mounted conversation: load saved messages for an
   // opened session; drafts (no sessionId yet) never fetch, so a draft
@@ -317,6 +350,17 @@ export const ChatBot: React.FC<ChatBotProps> = ({
     await handleSend(msg.text, history);
   };
 
+  const handleEditSave = async (msg: Message) => {
+    const text = editText.trim();
+    if (!text || isTyping || msg.sender !== 'user') return;
+    const idx = messages.findIndex((m) => m.id === msg.id);
+    if (idx === -1) return;
+    const history = messages.slice(0, idx).map((m) => ({ role: m.sender, text: m.text }));
+    setEditingId(null);
+    setMessages((prev) => prev.slice(0, idx));
+    await handleSend(text, history);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -451,13 +495,44 @@ export const ChatBot: React.FC<ChatBotProps> = ({
                     expandedIds.includes(msg.id) ? ' expanded' : ''
                   }`}
                 >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={botHeadings}
-                  >
-                    {msg.sender === 'user' ? userMd(msg.text) : msg.text}
-                  </ReactMarkdown>
-                  {expandedIds.includes(msg.id) && (
+                  {editingId === msg.id ? (
+                    <div className="edit-form">
+                      <div className="edit-row">
+                        <span className="edit-mirror" aria-hidden="true">
+                          {editText || ' '}
+                        </span>
+                        <textarea
+                          className="edit-textarea"
+                          value={editText}
+                          ref={(el) => {
+                            if (el) {
+                              el.style.height = 'auto';
+                              el.style.height = `${el.scrollHeight}px`;
+                            }
+                          }}
+                          onChange={(e) => setEditText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                              e.preventDefault();
+                              handleEditSave(msg);
+                            } else if (e.key === 'Escape') {
+                              setEditingId(null);
+                            }
+                          }}
+                          autoFocus
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm]}
+                      rehypePlugins={[rehypeHighlight]}
+                      components={{ ...botHeadings, pre: CodeBlock }}
+                    >
+                      {msg.sender === 'user' ? userMd(msg.text) : msg.text}
+                    </ReactMarkdown>
+                  )}
+                  {expandedIds.includes(msg.id) && editingId !== msg.id && (
                     <button
                       type="button"
                       className="show-less-btn"
@@ -478,33 +553,77 @@ export const ChatBot: React.FC<ChatBotProps> = ({
                   </button>
                 )}
 
-                <div className="message-meta">
-                  <span>{msg.timestamp}</span>
-                  {msg.sender === 'user' && (
-                    <button
-                      className="copy-btn"
-                      onClick={() => handleRetry(msg)}
-                      type="button"
-                      disabled={isTyping}
-                    >
-                      <RotateCcw size={12} /> Retry
-                    </button>
+                <div
+                  ref={(el) => {
+                    if (msg.sender === 'user') metaRefs.current[msg.id] = el;
+                  }}
+                  className="message-meta"
+                  style={
+                    editingId === msg.id ? { minWidth: editMetaWidth ?? undefined } : undefined
+                  }
+                >
+                  {editingId === msg.id ? (
+                    <>
+                      <button
+                        className="copy-btn"
+                        onClick={() => handleEditSave(msg)}
+                        type="button"
+                        disabled={isTyping}
+                      >
+                        <Check size={12} /> Save
+                      </button>
+                      <button
+                        className="copy-btn"
+                        onClick={() => setEditingId(null)}
+                        type="button"
+                      >
+                        Cancel
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <span>{msg.timestamp}</span>
+                      {msg.sender === 'user' && (
+                        <>
+                          <button
+                            className="copy-btn"
+                            onClick={() => {
+                              setEditText(msg.text);
+                              setEditMetaWidth(metaRefs.current[msg.id]?.offsetWidth ?? null);
+                              setEditingId(msg.id);
+                            }}
+                            type="button"
+                            disabled={isTyping}
+                          >
+                            <Pencil size={12} /> Edit
+                          </button>
+                          <button
+                            className="copy-btn"
+                            onClick={() => handleRetry(msg)}
+                            type="button"
+                            disabled={isTyping}
+                          >
+                            <RotateCcw size={12} /> Retry
+                          </button>
+                        </>
+                      )}
+                      <button
+                        className="copy-btn"
+                        onClick={() => handleCopy(msg.id, msg.text)}
+                        type="button"
+                      >
+                        {copiedId === msg.id ? (
+                          <>
+                            <Check size={12} /> Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={12} /> Copy
+                          </>
+                        )}
+                      </button>
+                    </>
                   )}
-                  <button
-                    className="copy-btn"
-                    onClick={() => handleCopy(msg.id, msg.text)}
-                    type="button"
-                  >
-                    {copiedId === msg.id ? (
-                      <>
-                        <Check size={12} /> Copied
-                      </>
-                    ) : (
-                      <>
-                        <Copy size={12} /> Copy
-                      </>
-                    )}
-                  </button>
                 </div>
               </div>
             </div>
