@@ -8,4 +8,8 @@ export default defineConfig({
     react(),
     babel({ presets: [reactCompilerPreset()] })
   ],
+  server: {
+    // bind mounts in docker-compose.dev.yml don't emit fs events reliably
+    watch: { usePolling: process.env.CHOKIDAR_USEPOLLING === 'true' },
+  },
 })

@@ -13,7 +13,6 @@ import {
   GitPullRequest,
   BookOpen,
   SlidersHorizontal,
-  Search,
   PanelLeft,
   HelpCircle,
   Settings,
