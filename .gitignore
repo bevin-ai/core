@@ -51,3 +51,6 @@ temp/
 
 # Optional: local uploads
 uploads/
+
+# GitHub App private key (never commit keys)
+*.pem
