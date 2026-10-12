@@ -1,0 +1,72 @@
+analyze_code_inquiry:
+  description: >
+    Analyze the following developer inquiry:
+
+    {topic}
+
+    Pull Request diff code:
+    {code}
+
+    Determine whether this is a general programming question,
+    an implementation request, or a code review.
+
+    For code reviews, inspect the changed behavior and identify
+    possible correctness, security, performance, and maintainability
+    issues. Use the supplied context as evidence. Do not claim to have
+    run tests or inspected files that were not supplied.
+
+    For implementation requests, explain the approach and provide
+    a technically sound solution. Distinguish assumptions from facts.
+  expected_output: >
+    A technical analysis containing the proposed solution, relevant
+    implementation details, and any potential findings with supporting
+    evidence. Do not invent findings.
+  agent: code_analyst
+
+review_code_solution:
+  description: >
+    Review the analysis produced by the preceding task for:
+
+    - Technical correctness
+    - Logical errors and edge cases
+    - Security vulnerabilities
+    - Performance concerns
+    - Maintainability and coding conventions
+    - Accuracy of file paths, line numbers, and evidence
+
+    Original inquiry:
+    {topic}
+
+    Pull request diff code:
+    {code}
+
+    Produce the final structured response using the CodeReview schema.
+
+    The summary must provide a concise overall review message.
+
+    Each finding must include severity (P0, P1, P2, or P3), title,
+    file, line, side, issue, impact, suggested_fix, evidence, and fix_code.
+
+    For inline findings:
+    - Use the unified diff as the source of truth.
+    - The file must exactly match a repository-relative path in the diff.
+    - Read @@ hunk headers to determine old and new line numbers.
+    - Use RIGHT for added lines and LEFT for deleted lines.
+    - Prefer added lines and RIGHT whenever possible.
+    - Only report issues anchored to changed lines.
+    - Never invent file paths, line numbers, evidence, or test results.
+    - Avoid duplicate findings and keep each comment actionable.
+    - Omit findings that cannot be reliably anchored to the diff.
+
+    Each fix_code must contain a minimal corrected code snippet for
+    its individual finding, without Markdown fences.
+
+    Do not include category, location, review status, positive
+    observations, a final recommendation, or a global solution or diff.
+
+    Do not invent findings or claim tests were executed.
+    Return empty findings when no actionable issue is established.
+  expected_output: >
+    A validated CodeReview object containing a concise summary and
+    GitHub-anchored inline findings.
+  agent: solution_reviewer
