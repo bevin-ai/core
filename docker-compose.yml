@@ -25,7 +25,7 @@ services:
     ports:
       - "5000:5000"
     env_file:
-      - ./server/.env
+      - ./.env
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/bevin?schema=public
       CHAT_SERVICE_URL: http://chat-service:8000
@@ -44,7 +44,7 @@ services:
     ports:
       - "8000:8000"
     env_file:
-      - ./chat-service/.env
+      - ./.env
     volumes:
       - ./chat-service:/app
       - /app/.venv # container's linux venv stays; host mount can't hide it
