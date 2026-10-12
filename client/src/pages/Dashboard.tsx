@@ -266,7 +266,7 @@ export const Dashboard: React.FC = () => {
           <ChatBot key={conversationKey} title="Bevin" compact sessionId={activeSessionId} onStreamMessage={handleStreamMessage} />
           <div className="connect-codebase">
             <span><GitPullRequest size={15} /> Connect your codebase to try Bevin for free</span>
-            <a href="https://github.com/apps/bevin-ai-webhook-wala/installations/new" target="_blank" rel="noreferrer">Connect</a>
+            <a href="https://github.com/apps/bevin-ai/installations/new" target="_blank" rel="noreferrer">Connect</a>
           </div>
           <div className="getting-started">
             <div className="getting-started-header">
