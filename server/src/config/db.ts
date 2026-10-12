@@ -7,7 +7,7 @@ import { PrismaPg } from '@prisma/adapter-pg';
 // `ssl: { rejectUnauthorized: false }` is a no-op there.
 const adapter = new PrismaPg({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
 });
 
 export const prisma = new PrismaClient({ adapter });
