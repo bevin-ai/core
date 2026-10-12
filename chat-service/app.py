@@ -7,6 +7,8 @@ from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
+from src.crew import BevinCrew
+
 load_dotenv()
 
 app = FastAPI(title="Bevin Chat Service")
@@ -26,6 +28,21 @@ class ChatRequest(BaseModel):
 class FirstReply(BaseModel):
     title: str = Field(description="Session title, at most 6 words, title case")
     reply: str = Field(description="The complete answer to the user's message")
+
+
+class ReviewRequest(BaseModel):
+    topic: str = Field(
+        default="",
+        description="Code snippet, problem description, or topic for the Crew to analyze and review.",
+    )
+    code: str = Field(
+        default="",
+        description="Optional code snippet alias for topic.",
+    )
+    message: str = Field(
+        default="",
+        description="Optional message alias for topic.",
+    )
 
 
 @app.get("/health")
@@ -99,3 +116,24 @@ def chat(req: ChatRequest) -> Response:
     return StreamingResponse(
         generate(), media_type="text/plain; charset=utf-8"
     )
+
+
+@app.post("/review")
+def review(req: ReviewRequest) -> Response:
+    content = (req.topic or req.code or req.message).strip()
+    if not content:
+        return JSONResponse(
+            status_code=400,
+            content={"error": "Field 'topic', 'code', or 'message' is required."},
+        )
+
+    try:
+        crew_system = BevinCrew(llm=llm)
+        result = crew_system.kickoff(inputs={"topic": content})
+        output_text = str(result.raw if hasattr(result, "raw") else result)
+        return JSONResponse(content={"result": output_text})
+    except Exception as exc:  # noqa: BLE001
+        print(f"review error: {exc}", file=sys.stderr, flush=True)
+        return JSONResponse(
+            status_code=502, content={"error": f"Review failed: {exc}"}
+        )
