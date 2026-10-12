@@ -8,6 +8,7 @@ import authRoutes from './routes/auth/auth.routes';
 import webhookRoutes from './routes/webhook/routes';
 import sessionRoutes from './routes/sessions/sessions.routes';
 import chatRoutes from './routes/chat/chat.routes';
+import githubRoutes from './routes/github/github.routes'; 
 
 const app: Application = express();
 
@@ -60,6 +61,8 @@ app.use('/api/sessions', sessionRoutes);
 
 // Chat (authenticated, proxies to CrewAI chat service)
 app.use('/api/chat', chatRoutes);
+
+app.use('/api/github', githubRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

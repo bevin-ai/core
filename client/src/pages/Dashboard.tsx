@@ -242,7 +242,7 @@ export const Dashboard: React.FC = () => {
           </div>
           <div className="sidebar-footer-actions">
             <button type="button" aria-label="Help"><HelpCircle size={15} /></button>
-            <button type="button" aria-label="Settings"><Settings size={15} /></button>
+            <Link to="/settings" aria-label="Settings"><Settings size={15} /></Link>
           </div>
         </div>
       </aside>
