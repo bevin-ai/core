@@ -77,3 +77,100 @@ export async function postIssueComment(
     { body },
   );
 }
+
+export interface PullRequestInfo {
+  title: string;
+  body: string;
+  head: {
+    sha: string;
+  };
+}
+
+export async function getPullRequest(
+    repoFullName: string,
+    pullNumber: number,
+): Promise<PullRequestInfo> {
+  const token = await installationToken(repoFullName);
+
+  const pr = await gh<PullRequestInfo>(
+      `${API}/repos/${repoFullName}/pulls/${pullNumber}`,
+      'GET',
+      token,
+  );
+
+  return {
+    title: pr.title,
+    body: pr.body,
+    head: pr.head,
+  };
+}
+
+export async function getPullRequestDiff(
+  repoFullName: string,
+  number: number,
+): Promise<string> {
+  const token = await installationToken(repoFullName);
+  const res = await fetch(`${API}/repos/${repoFullName}/pulls/${number}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3.diff',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub diff fetch failed: ${res.status} ${await res.text()}`);
+  }
+  return res.text();
+}
+
+export async function postReview(
+    repoFullName: string,
+    pullNumber: number,
+    commitId: string,
+    review: {
+      summary: string;
+      findings: {
+        file: string;
+        line: number;
+        side: 'RIGHT' | 'LEFT';
+        issue: string;
+        severity: 'P0' | 'P1' | 'P2' | 'P3';
+        title: string;
+        impact: string;
+        suggested_fix: string;
+        fix_code: string;
+      }[];
+    },
+): Promise<void> {
+  const token = await installationToken(repoFullName);
+
+  await gh(
+      `${API}/repos/${repoFullName}/pulls/${pullNumber}/reviews`,
+      'POST',
+      token,
+      {
+        commit_id: commitId,
+        body: review.summary,
+        event: 'COMMENT',
+        comments: review.findings.map((finding) => ({
+          path: finding.file,
+          line: finding.line,
+          side: finding.side,
+          body: [
+            `**${finding.severity}: ${finding.title}**`,
+            '',
+            finding.issue,
+            '',
+            `**Impact:** ${finding.impact}`,
+            '',
+            `**Suggested fix:** ${finding.suggested_fix}`,
+            ...(finding.fix_code
+                ? ['', '**Example fix:**', '```', finding.fix_code, '```']
+                : []),
+          ].join('\n'),
+        })),
+      },
+  );
+}
