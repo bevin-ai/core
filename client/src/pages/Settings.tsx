@@ -7,8 +7,6 @@ import {
   Cpu,
   ExternalLink,
   Globe,
-  LayoutDashboard,
-  Lock,
   Plus,
   RefreshCw,
   Search,
