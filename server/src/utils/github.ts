@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken';
+import { renderMarkdown, renderInlineFinding } from './renderer';
+import {CodeReview, Finding} from "./models";
 
 const API = 'https://api.github.com';
 const APP_ID = process.env.GITHUB_APP_ID;
@@ -142,6 +144,30 @@ export function listUserRepos(userToken: string): Promise<UserRepo[]> {
     (b) => b,
   );
 }
+export type ReactionContent =
+  | 'eyes'
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket';
+
+export async function reactToComment(
+  repoFullName: string,
+  commentId: number,
+  content: ReactionContent,
+): Promise<void> {
+  const token = await installationToken(repoFullName);
+  await gh(
+    `${API}/repos/${repoFullName}/issues/comments/${commentId}/reactions`,
+    'PUT',
+    token,
+    { content },
+  );
+}
+
 export interface PullRequestInfo {
   title: string;
   body: string;
@@ -193,20 +219,7 @@ export async function postReview(
     repoFullName: string,
     pullNumber: number,
     commitId: string,
-    review: {
-      summary: string;
-      findings: {
-        file: string;
-        line: number;
-        side: 'RIGHT' | 'LEFT';
-        issue: string;
-        severity: 'P0' | 'P1' | 'P2' | 'P3';
-        title: string;
-        impact: string;
-        suggested_fix: string;
-        fix_code: string;
-      }[];
-    },
+    review: CodeReview,
 ): Promise<void> {
   const token = await installationToken(repoFullName);
 
@@ -216,24 +229,13 @@ export async function postReview(
       token,
       {
         commit_id: commitId,
-        body: review.summary,
+        body: renderMarkdown(review),
         event: 'COMMENT',
-        comments: review.findings.map((finding) => ({
+        comments: review.findings.map((finding: Finding) => ({
           path: finding.file,
           line: finding.line,
           side: finding.side,
-          body: [
-            `**${finding.severity}: ${finding.title}**`,
-            '',
-            finding.issue,
-            '',
-            `**Impact:** ${finding.impact}`,
-            '',
-            `**Suggested fix:** ${finding.suggested_fix}`,
-            ...(finding.fix_code
-                ? ['', '**Example fix:**', '```', finding.fix_code, '```']
-                : []),
-          ].join('\n'),
+          body: renderInlineFinding(finding),
         })),
       },
   );

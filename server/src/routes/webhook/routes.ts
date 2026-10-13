@@ -4,6 +4,7 @@ import {
   postReview,
   getPullRequest,
   getPullRequestDiff,
+  reactToComment,
 } from '../../utils/github';
 import type { CodeReview } from '../../utils/models';
 
@@ -40,6 +41,7 @@ interface Mention {
   prNumber: number;
   author: string;
   commentUrl: string;
+  commentId: number;
   text: string;
 }
 
@@ -52,17 +54,18 @@ function extractPrMention(event: string, payload: any): Mention | null {
 
   const text = payload.comment?.body;
   const commentUrl = payload.comment?.html_url;
+  const commentId = payload.comment?.id;
   const prNumber = payload.issue?.number;
   const repo = payload.repository?.full_name;
   const author = payload.sender?.login;
 
-  if (!text || !repo || !prNumber || !author || !commentUrl) {
+  if (!text || !repo || !prNumber || !author || !commentUrl || !commentId) {
     return null;
   }
 
   if (!MENTION.test(text)) return null;
 
-  return { repo, prNumber, author, commentUrl, text };
+  return { repo, prNumber, author, commentUrl, commentId, text };
 }
 
 async function askReviewer(
@@ -146,6 +149,14 @@ router.post(
         res.status(200).json({ received: true });
 
         if (mention) {
+          reactToComment(mention.repo, mention.commentId, 'eyes').catch(
+            (err) =>
+              console.error(
+                `@bevin-ai reaction failed (${mention.commentUrl}):`,
+                err,
+              ),
+          );
+
           askReviewer(mention)
               .then(({ review, headSha }) =>
                   postReview(
