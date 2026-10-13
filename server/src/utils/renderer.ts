@@ -1,10 +1,13 @@
 import type { CodeReview, Finding } from './models';
 
+const badge = (alt: string, url: string) =>
+    `<img align="absbottom" width="58" height="18" alt="${alt}" src="${url}" />`;
+
 const SEVERITY_BADGES: Record<Finding['severity'], string> = {
-  P0: '<span style="background-color:red;color:white;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;">Critical</span>',
-  P1: '<span style="background-color:orange;color:black;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;">Major</span>',
-  P2: '<span style="background-color:yellow;color:black;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;">Minor</span>',
-  P3: '<span style="background-color:#e1f5fe;color:black;padding:4px 8px;border-radius:12px;font-size:12px;font-weight:bold;">Nit</span>',
+    P0: badge('Critical', 'https://github.com/user-attachments/assets/4a17f27d-77f6-4ee7-876a-32c39e111f35'),
+    P1: badge('Major', 'https://github.com/user-attachments/assets/43077017-37c9-4d7f-8f28-68923e6e5829'),
+    P2: badge('Minor', 'https://github.com/user-attachments/assets/ada6b986-2bff-47f8-9aab-5addcacb753f'),
+    P3: badge('Nit', 'https://github.com/user-attachments/assets/b0a2f9ea-b708-43ee-a663-702cf4102f67'),
 };
 
 function renderDiff(originalCode: string, fixCode: string): string {
@@ -18,8 +21,7 @@ function renderDiff(originalCode: string, fixCode: string): string {
 
 function renderFinding(finding: Finding & { original_code?: string }): string[] {
     const lines = [
-        `### ${SEVERITY_BADGES[finding.severity]}`,
-        `${finding.title}`,
+        `<h3>${SEVERITY_BADGES[finding.severity]} ${finding.title}</h3>`,
         '',
         `**File:** \`${finding.file}:${finding.line}\``,
         '',
