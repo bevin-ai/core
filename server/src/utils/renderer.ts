@@ -18,7 +18,8 @@ function renderDiff(originalCode: string, fixCode: string): string {
 
 function renderFinding(finding: Finding & { original_code?: string }): string[] {
     const lines = [
-        `### ${SEVERITY_BADGES[finding.severity]} ${finding.title}`,
+        `### ${SEVERITY_BADGES[finding.severity]}`,
+        `${finding.title}`,
         '',
         `**File:** \`${finding.file}:${finding.line}\``,
         '',
@@ -68,42 +69,12 @@ export function renderInlineFinding(
 // Used for the overall GitHub pull request review comment.
 export function renderMarkdown(review: CodeReview): string {
     const sections = [
-        '# Bevin Code Review',
         '',
         '## Summary',
         '',
         review.summary,
         '',
-        '---',
-        '',
-        '## Findings',
-        '',
     ];
-
-    const findings = review.findings.filter((f) => f.severity !== 'P3');
-    const nits = review.findings.filter((f) => f.severity === 'P3');
-
-    for (const finding of findings) {
-        sections.push(...renderFinding(finding), '', '---', '');
-    }
-
-    if (findings.length === 0) {
-        sections.push('No major issues found.', '');
-    }
-
-    if (nits.length > 0) {
-        sections.push(
-            '<details>',
-            `<summary>Show Nitpicks (${nits.length})</summary>`,
-            '',
-        );
-
-        for (const finding of nits) {
-            sections.push(...renderFinding(finding), '');
-        }
-
-        sections.push('</details>', '');
-    }
 
     return sections.join('\n');
 }
