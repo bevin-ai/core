@@ -1,4 +1,6 @@
 import jwt from 'jsonwebtoken';
+import { renderMarkdown, renderInlineFinding } from './renderer';
+import {CodeReview, Finding} from "./models";
 
 const API = 'https://api.github.com';
 const APP_ID = process.env.GITHUB_APP_ID;
@@ -75,5 +77,102 @@ export async function postIssueComment(
     'POST',
     token,
     { body },
+  );
+}
+
+export type ReactionContent =
+  | 'eyes'
+  | '+1'
+  | '-1'
+  | 'laugh'
+  | 'confused'
+  | 'heart'
+  | 'hooray'
+  | 'rocket';
+
+export async function reactToComment(
+  repoFullName: string,
+  commentId: number,
+  content: ReactionContent,
+): Promise<void> {
+  const token = await installationToken(repoFullName);
+  await gh(
+    `${API}/repos/${repoFullName}/issues/comments/${commentId}/reactions`,
+    'PUT',
+    token,
+    { content },
+  );
+}
+
+export interface PullRequestInfo {
+  title: string;
+  body: string;
+  head: {
+    sha: string;
+  };
+}
+
+export async function getPullRequest(
+    repoFullName: string,
+    pullNumber: number,
+): Promise<PullRequestInfo> {
+  const token = await installationToken(repoFullName);
+
+  const pr = await gh<PullRequestInfo>(
+      `${API}/repos/${repoFullName}/pulls/${pullNumber}`,
+      'GET',
+      token,
+  );
+
+  return {
+    title: pr.title,
+    body: pr.body,
+    head: pr.head,
+  };
+}
+
+export async function getPullRequestDiff(
+  repoFullName: string,
+  number: number,
+): Promise<string> {
+  const token = await installationToken(repoFullName);
+  const res = await fetch(`${API}/repos/${repoFullName}/pulls/${number}`, {
+    method: 'GET',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.v3.diff',
+      'X-GitHub-Api-Version': '2022-11-28',
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub diff fetch failed: ${res.status} ${await res.text()}`);
+  }
+  return res.text();
+}
+
+export async function postReview(
+    repoFullName: string,
+    pullNumber: number,
+    commitId: string,
+    review: CodeReview,
+): Promise<void> {
+  const token = await installationToken(repoFullName);
+
+  await gh(
+      `${API}/repos/${repoFullName}/pulls/${pullNumber}/reviews`,
+      'POST',
+      token,
+      {
+        commit_id: commitId,
+        body: renderMarkdown(review),
+        event: 'COMMENT',
+        comments: review.findings.map((finding: Finding) => ({
+          path: finding.file,
+          line: finding.line,
+          side: finding.side,
+          body: renderInlineFinding(finding),
+        })),
+      },
   );
 }

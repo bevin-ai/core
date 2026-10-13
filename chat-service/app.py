@@ -1,13 +1,14 @@
 import os
 import sys
 
-from crewai import Agent, Crew, LLM, Process, Task
+from crewai import LLM, Agent, Crew, Process, Task
 from dotenv import load_dotenv
 from fastapi import FastAPI, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field
-
 from src.crew import BevinCrew
+from src.utils.models import CodeReview
+from src.utils.renderer import render_markdown
 
 load_dotenv()
 
@@ -62,9 +63,7 @@ def build_agent() -> Agent:
 
 @app.post("/chat")
 def chat(req: ChatRequest) -> Response:
-    context = "\n".join(
-        f"{m.get('role')}: {m.get('text')}" for m in req.history[-10:]
-    )
+    context = "\n".join(f"{m.get('role')}: {m.get('text')}" for m in req.history[-10:])
 
     if req.first:
         prompt = (
@@ -100,9 +99,7 @@ def chat(req: ChatRequest) -> Response:
         agent=agent,
         expected_output="A clear, helpful reply to the user's message.",
     )
-    crew = Crew(
-        agents=[agent], tasks=[task], process=Process.sequential, stream=True
-    )
+    crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, stream=True)
 
     def generate():
         try:
@@ -113,14 +110,14 @@ def chat(req: ChatRequest) -> Response:
         except Exception as exc:  # noqa: BLE001
             print(f"chat stream error: {exc}", file=sys.stderr, flush=True)
 
-    return StreamingResponse(
-        generate(), media_type="text/plain; charset=utf-8"
-    )
+    return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
 
 @app.post("/review")
 def review(req: ReviewRequest) -> Response:
-    content = (req.topic or req.code or req.message).strip()
+    content = (req.topic or req.message).strip()
+    diff = req.code.strip()
+
     if not content:
         return JSONResponse(
             status_code=400,
@@ -128,12 +125,26 @@ def review(req: ReviewRequest) -> Response:
         )
 
     try:
-        crew_system = BevinCrew(llm=llm)
-        result = crew_system.kickoff(inputs={"topic": content})
-        output_text = str(result.raw if hasattr(result, "raw") else result)
-        return JSONResponse(content={"result": output_text})
+        crew_system = BevinCrew()
+        result = BevinCrew().kickoff(
+            inputs={
+                "topic": content,
+                "code": diff,
+            }
+        )
+
+        review_result = result.pydantic
+
+        if not isinstance(review_result, CodeReview):
+            raise HTTPException(
+                status_code=500,
+                detail="CrewAI did not return a structured CodeReview",
+            )
+
+        return review_result.model_dump(mode="json")
     except Exception as exc:  # noqa: BLE001
         print(f"review error: {exc}", file=sys.stderr, flush=True)
         return JSONResponse(
-            status_code=502, content={"error": f"Review failed: {exc}"}
+            status_code=502,
+            content={"error": "Review failed"},
         )
