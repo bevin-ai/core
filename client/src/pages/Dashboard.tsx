@@ -268,18 +268,7 @@ export const Dashboard: React.FC = () => {
             <span><GitPullRequest size={15} /> Connect your codebase to try Bevin for free</span>
             <a href="https://github.com/apps/bevin-ai/installations/new" target="_blank" rel="noreferrer">Connect</a>
           </div>
-          <div className="getting-started">
-            <div className="getting-started-header">
-              <strong>Get started</strong>
-              <span>1 of 6 <i></i><button type="button" aria-label="Dismiss getting started">×</button></span>
-            </div>
-            <div className="getting-started-list">
-              <div className="getting-started-item"><span className="checked">✓</span><a href="https://github.com/apps/bevin-ai-webhook-wala/installations/new" target="_blank" rel="noreferrer">Connect to Git</a></div>
-              <div className="getting-started-item"><span></span><span>Select repositories</span></div>
-              <div className="getting-started-item"><span></span><span>Make your first session</span></div>
-              <div className="getting-started-item"><span></span><span>Validate in Bevin Review</span></div>
-            </div>
-          </div>
+          
         </section>
       </main>
     </div>
