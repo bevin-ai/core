@@ -7,12 +7,15 @@ import {
   ExternalLink,
   Globe,
   Plus,
+  LayoutDashboard,
+  Lock,
   RefreshCw,
   Search,
   User as UserIcon,
 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { useAuth } from '../context/useAuth';
+import { Link } from 'react-router-dom';
 
 interface Repo {
   id: number;
