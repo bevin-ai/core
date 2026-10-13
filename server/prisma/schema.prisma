@@ -20,6 +20,7 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   sessions         Session[]
+  githubAccessToken String?
 }
 
 model Session {

@@ -80,6 +80,70 @@ export async function postIssueComment(
   );
 }
 
+async function pages<T>(
+  url: string,
+  token: string,
+  pick: (body: any) => T[],
+  maxPages = 10,
+): Promise<T[]> {
+  const out: T[] = [];
+  for (let p = 1; p <= maxPages; p++) {
+    const sep = url.includes('?') ? '&' : '?';
+    const items = pick(await gh<any>(`${url}${sep}per_page=100&page=${p}`, 'GET', token));
+    out.push(...items);
+    if (items.length < 100) break;
+  }
+  return out;
+}
+
+let installedCache: { ids: Set<number>; expires: number } | null = null;
+
+/** IDs of every repo our GitHub App is installed on (across all installations). */
+export async function listInstalledRepoIds(): Promise<Set<number>> {
+  if (installedCache && installedCache.expires > Date.now()) return installedCache.ids;
+
+  const installations = await pages<{ id: number }>(
+    `${API}/app/installations`,
+    appJwt(),
+    (b) => b,
+  );
+
+  const ids = new Set<number>();
+  for (const inst of installations) {
+    const { token } = await gh<{ token: string }>(
+      `${API}/app/installations/${inst.id}/access_tokens`,
+      'POST',
+      appJwt(),
+    );
+    const repos = await pages<{ id: number }>(
+      `${API}/installation/repositories`,
+      token,
+      (b) => b.repositories,
+    );
+    repos.forEach((r) => ids.add(r.id));
+  }
+
+  installedCache = { ids, expires: Date.now() + 60_000 };
+  return ids;
+}
+
+export interface UserRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  private: boolean;
+  html_url: string;
+  owner: { id: number; login: string; avatar_url: string };
+}
+
+/** All repos the user can access: own, collaborator, and organization repos. */
+export function listUserRepos(userToken: string): Promise<UserRepo[]> {
+  return pages<UserRepo>(
+    `${API}/user/repos?affiliation=owner,collaborator,organization_member&sort=updated`,
+    userToken,
+    (b) => b,
+  );
+}
 export type ReactionContent =
   | 'eyes'
   | '+1'

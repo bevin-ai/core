@@ -3,6 +3,7 @@ import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../../config/db';
 import { authenticate, AuthenticatedRequest } from '../../middleware/auth.middleware';
+import { encrypt } from '../../utils/crypto';   
 
 const router = Router();
 
@@ -46,7 +47,7 @@ router.get('/github', (req: Request, res: Response): void => {
   const params = new URLSearchParams({
     client_id: clientId,
     redirect_uri: callbackUrl,
-    scope: 'read:user user:email',
+    scope: 'read:user user:email repo',
     state: state,
     allow_signup: 'true',
   });
@@ -188,6 +189,7 @@ router.get('/github/callback', async (req: Request, res: Response): Promise<void
       email: userEmail || undefined,
       avatarUrl: githubProfile.avatar_url || undefined,
       githubProfileUrl: githubProfile.html_url || undefined,
+      githubAccessToken: encrypt(accessToken),
     };
 
     const existingUser = await prisma.user.findUnique({ where: { githubId: githubIdStr } });
