@@ -11,8 +11,7 @@ import type { CodeReview } from '../../utils/models';
 const router = Router();
 
 const GITHUB_WEBHOOK_SECRET = process.env.GITHUB_WEBHOOK_SECRET || '';
-const CHAT_SERVICE_URL =
-    process.env.CHAT_SERVICE_URL || 'http://localhost:8000';
+const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL;
 const MENTION = /@bevin-ai\b/i;
 
 function verifyGithubSignature(
@@ -71,6 +70,10 @@ function extractPrMention(event: string, payload: any): Mention | null {
 async function askReviewer(
     mention: Mention,
 ): Promise<{ review: CodeReview; headSha: string }> {
+  if (!CHAT_SERVICE_URL) {
+    throw new Error('chat-service is not configured (CHAT_SERVICE_URL)');
+  }
+
   const [pr, diff] = await Promise.all([
     getPullRequest(mention.repo, mention.prNumber),
     getPullRequestDiff(mention.repo, mention.prNumber),

@@ -5,7 +5,7 @@ const router = Router();
 
 router.use(authenticate);
 
-const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || 'http://localhost:8000';
+const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL;
 
 /**
  * POST /api/chat
@@ -13,6 +13,10 @@ const CHAT_SERVICE_URL = process.env.CHAT_SERVICE_URL || 'http://localhost:8000'
  * back to the client as plain-text chunks.
  */
 router.post('/', async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+  if (!CHAT_SERVICE_URL) {
+    res.status(503).json({ error: 'Chat service is not configured' });
+    return;
+  }
   try {
     const upstream = await fetch(`${CHAT_SERVICE_URL}/chat`, {
       method: 'POST',

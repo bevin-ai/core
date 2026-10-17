@@ -8,10 +8,6 @@ set -e
 DATABASE_URL=$(printf '%s' "$DATABASE_URL" | sed 's|^postgres://|postgresql://|')
 export DATABASE_URL
 
-# chat-service on an internal-only port (not routed by Heroku)
-cd /app/chat-service
-uv run --no-sync uvicorn app:app --host 127.0.0.1 --port 8001 &
-
 # API + static client; Heroku injects $PORT
 cd /app/server
 npx prisma migrate deploy
